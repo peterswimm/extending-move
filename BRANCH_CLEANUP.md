@@ -91,6 +91,49 @@ git ls-remote --heads origin
 # Should only show main branch in both cases
 ```
 
+## Automated Branch Cleanup
+
+### GitHub Action Workflow ✅
+
+A GitHub Action has been implemented to automate the branch cleanup process:
+
+- **File:** `.github/workflows/branch-cleanup.yml`
+- **Schedule:** Runs monthly on the 1st at 2 AM UTC
+- **Manual Trigger:** Can be run manually from the Actions tab
+- **Dry Run Mode:** Default mode for manual runs to preview changes
+- **Protected Branches:** Configurable list of branches to preserve
+
+#### Features
+
+- **Smart Protection:** Automatically protects `main`, `master`, `develop`, and release/hotfix branches
+- **Comprehensive Logging:** Detailed output showing what branches will be/were deleted
+- **Safety First:** Dry run mode by default for manual execution
+- **Configurable:** Custom protected branch patterns can be specified
+- **Reporting:** Generates cleanup reports for tracking
+
+#### Usage
+
+**Manual Execution:**
+1. Go to the "Actions" tab in GitHub
+2. Select "Automated Branch Cleanup"
+3. Click "Run workflow"
+4. Configure options:
+   - **Dry Run:** Preview changes without deleting (recommended first)
+   - **Protected Branches:** Comma-separated patterns (supports wildcards)
+
+**Scheduled Execution:**
+- Runs automatically monthly
+- Uses live deletion mode (not dry run)
+- Protects standard branches: `main,master,develop,release/*,hotfix/*`
+
+#### Example Protected Branch Patterns
+
+```
+main,master,develop                    # Exact matches only
+main,feature/*,release/*              # With wildcards
+main,staging,production,hotfix/*       # Mixed patterns
+```
+
 ## Repository Impact
 
 - ✅ Repository structure maintained
@@ -98,5 +141,6 @@ git ls-remote --heads origin
 - ✅ Improved repository cleanliness
 - ✅ Reduced maintenance overhead
 - ✅ Tests continue to pass
+- ✅ Automated cleanup prevents branch accumulation
 
-This cleanup has no impact on the repository functionality and only removes unnecessary historical branches.
+This cleanup has no impact on the repository functionality and only removes unnecessary historical branches. The automated workflow ensures consistent maintenance without manual intervention.

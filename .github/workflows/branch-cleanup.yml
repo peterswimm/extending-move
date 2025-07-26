@@ -1,0 +1,308 @@
+name: Automated Branch Cleanup
+
+on:
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Perform a dry run (list branches to be deleted without actually deleting them)'
+        required: false
+        default: 'true'
+        type: boolean
+      protected_branches:
+        description: 'Comma-separated list of protected branch patterns (supports wildcards)'
+        required: false
+        default: 'main,master,develop,release/*,hotfix/*'
+        type: string
+  
+  # Run automatically on a schedule (monthly on the 1st at 2 AM UTC)
+  schedule:
+    - cron: '0 2 1 * *'
+
+jobs:
+  cleanup-branches:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      # Need contents:write permission to delete branches
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all branches
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up variables
+        id: setup
+        run: |
+          # Set dry_run mode - default to true for scheduled runs, respect input for manual runs
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+            echo "protected_branches=main,master,develop,release/*,hotfix/*" >> $GITHUB_OUTPUT
+          else
+            echo "dry_run=${{ github.event.inputs.dry_run || 'true' }}" >> $GITHUB_OUTPUT
+            echo "protected_branches=${{ github.event.inputs.protected_branches || 'main,master,develop,release/*,hotfix/*' }}" >> $GITHUB_OUTPUT
+          fi
+          
+          # Get current date for logging
+          echo "cleanup_date=$(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_OUTPUT
+
+      - name: List all branches
+        id: list_branches
+        run: |
+          echo "=== BRANCH CLEANUP ANALYSIS ==="
+          echo "Date: ${{ steps.setup.outputs.cleanup_date }}"
+          echo "Dry Run Mode: ${{ steps.setup.outputs.dry_run }}"
+          echo "Protected Branches: ${{ steps.setup.outputs.protected_branches }}"
+          echo ""
+          
+          # Get all remote branches
+          echo "All remote branches:"
+          git ls-remote --heads origin | sed 's/.*refs\/heads\//  /' | tee all_branches.txt
+          
+          echo ""
+          echo "Current branch: $(git branch --show-current)"
+          
+          # Count total branches
+          total_branches=$(git ls-remote --heads origin | wc -l)
+          echo "total_branches=$total_branches" >> $GITHUB_OUTPUT
+          echo "Total branches found: $total_branches"
+
+      - name: Identify branches to delete
+        id: identify
+        run: |
+          echo "=== IDENTIFYING BRANCHES FOR DELETION ==="
+          
+          # Convert protected branches string to array
+          IFS=',' read -ra PROTECTED <<< "${{ steps.setup.outputs.protected_branches }}"
+          
+          # Get all branch names
+          git ls-remote --heads origin | sed 's/.*refs\/heads\///' > all_branches.txt
+          
+          # Create list of branches to delete
+          > branches_to_delete.txt
+          > protected_branches_found.txt
+          
+          while IFS= read -r branch; do
+            should_protect=false
+            
+            # Check each protected pattern
+            for pattern in "${PROTECTED[@]}"; do
+              pattern=$(echo "$pattern" | xargs)  # trim whitespace
+              
+              # Handle wildcard patterns
+              if [[ "$pattern" == *"*"* ]]; then
+                if [[ "$branch" == $pattern ]]; then
+                  should_protect=true
+                  break
+                fi
+              else
+                # Exact match
+                if [[ "$branch" == "$pattern" ]]; then
+                  should_protect=true
+                  break
+                fi
+              fi
+            done
+            
+            if [ "$should_protect" = true ]; then
+              echo "$branch" >> protected_branches_found.txt
+            else
+              echo "$branch" >> branches_to_delete.txt
+            fi
+          done < all_branches.txt
+          
+          # Display results
+          echo "Protected branches (will NOT be deleted):"
+          if [ -s protected_branches_found.txt ]; then
+            while IFS= read -r branch; do
+              echo "  ✓ $branch"
+            done < protected_branches_found.txt
+          else
+            echo "  (none found)"
+          fi
+          
+          echo ""
+          echo "Branches to be deleted:"
+          if [ -s branches_to_delete.txt ]; then
+            while IFS= read -r branch; do
+              echo "  ❌ $branch"
+            done < branches_to_delete.txt
+          else
+            echo "  (none found)"
+          fi
+          
+          # Count branches
+          branches_to_delete_count=$(wc -l < branches_to_delete.txt || echo "0")
+          protected_count=$(wc -l < protected_branches_found.txt || echo "0")
+          
+          echo "branches_to_delete_count=$branches_to_delete_count" >> $GITHUB_OUTPUT
+          echo "protected_count=$protected_count" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "Summary: $protected_count protected, $branches_to_delete_count to delete"
+
+      - name: Delete branches (or dry run)
+        id: delete
+        run: |
+          echo "=== BRANCH DELETION PHASE ==="
+          
+          if [ ! -s branches_to_delete.txt ]; then
+            echo "No branches to delete. Repository is clean!"
+            echo "deleted_count=0" >> $GITHUB_OUTPUT
+            echo "skipped_count=0" >> $GITHUB_OUTPUT
+            echo "error_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          deleted_count=0
+          skipped_count=0
+          error_count=0
+          
+          if [ "${{ steps.setup.outputs.dry_run }}" == "true" ]; then
+            echo "🔍 DRY RUN MODE - No branches will actually be deleted"
+            echo ""
+            
+            while IFS= read -r branch; do
+              echo "Would delete: $branch"
+              ((skipped_count++))
+            done < branches_to_delete.txt
+            
+          else
+            echo "🗑️  DELETION MODE - Deleting branches"
+            echo ""
+            
+            while IFS= read -r branch; do
+              echo "Deleting branch: $branch"
+              
+              if git push origin --delete "$branch" 2>/dev/null; then
+                echo "  ✅ Successfully deleted: $branch"
+                ((deleted_count++))
+              else
+                echo "  ❌ Failed to delete: $branch"
+                ((error_count++))
+              fi
+            done < branches_to_delete.txt
+            
+            # Clean up remote tracking references
+            echo ""
+            echo "Cleaning up remote tracking references..."
+            git remote prune origin
+          fi
+          
+          echo "deleted_count=$deleted_count" >> $GITHUB_OUTPUT
+          echo "skipped_count=$skipped_count" >> $GITHUB_OUTPUT
+          echo "error_count=$error_count" >> $GITHUB_OUTPUT
+
+      - name: Generate cleanup summary
+        run: |
+          echo "=== BRANCH CLEANUP SUMMARY ==="
+          echo "Date: ${{ steps.setup.outputs.cleanup_date }}"
+          echo "Mode: ${{ steps.setup.outputs.dry_run == 'true' && 'Dry Run' || 'Live Deletion' }}"
+          echo "Trigger: ${{ github.event_name }}"
+          echo ""
+          echo "Branch Statistics:"
+          echo "  Total branches: ${{ steps.list_branches.outputs.total_branches }}"
+          echo "  Protected branches: ${{ steps.identify.outputs.protected_count }}"
+          echo "  Candidates for deletion: ${{ steps.identify.outputs.branches_to_delete_count }}"
+          echo ""
+          echo "Deletion Results:"
+          if [ "${{ steps.setup.outputs.dry_run }}" == "true" ]; then
+            echo "  Branches that would be deleted: ${{ steps.delete.outputs.skipped_count }}"
+            echo "  ⚠️  This was a dry run - no branches were actually deleted"
+          else
+            echo "  Successfully deleted: ${{ steps.delete.outputs.deleted_count }}"
+            echo "  Failed to delete: ${{ steps.delete.outputs.error_count }}"
+            
+            if [ "${{ steps.delete.outputs.error_count }}" -gt 0 ]; then
+              echo "  ⚠️  Some branches could not be deleted (may not exist or insufficient permissions)"
+            fi
+            
+            if [ "${{ steps.delete.outputs.deleted_count }}" -gt 0 ]; then
+              echo "  ✅ Branch cleanup completed successfully"
+            else
+              echo "  ℹ️  No branches were deleted"
+            fi
+          fi
+          echo ""
+          echo "Protected branch patterns: ${{ steps.setup.outputs.protected_branches }}"
+          echo ""
+          echo "To run this cleanup manually with different settings:"
+          echo "  1. Go to Actions → Automated Branch Cleanup"
+          echo "  2. Click 'Run workflow'"
+          echo "  3. Configure dry_run and protected_branches as needed"
+
+      - name: Save cleanup report
+        if: steps.setup.outputs.dry_run == 'false'
+        run: |
+          # Create a cleanup report file
+          cat > cleanup-report.md << EOF
+          # Branch Cleanup Report
+          
+          **Date:** ${{ steps.setup.outputs.cleanup_date }}
+          **Trigger:** ${{ github.event_name }}
+          
+          ## Results
+          - **Total branches:** ${{ steps.list_branches.outputs.total_branches }}
+          - **Protected branches:** ${{ steps.identify.outputs.protected_count }}
+          - **Branches deleted:** ${{ steps.delete.outputs.deleted_count }}
+          - **Deletion failures:** ${{ steps.delete.outputs.error_count }}
+          
+          ## Protected Branches (Not Deleted)
+          EOF
+          
+          if [ -s protected_branches_found.txt ]; then
+            while IFS= read -r branch; do
+              echo "- \`$branch\`" >> cleanup-report.md
+            done < protected_branches_found.txt
+          else
+            echo "- (none)" >> cleanup-report.md
+          fi
+          
+          echo "" >> cleanup-report.md
+          echo "## Deleted Branches" >> cleanup-report.md
+          
+          if [ -s branches_to_delete.txt ] && [ "${{ steps.delete.outputs.deleted_count }}" -gt 0 ]; then
+            while IFS= read -r branch; do
+              echo "- \`$branch\`" >> cleanup-report.md
+            done < branches_to_delete.txt
+          else
+            echo "- (none)" >> cleanup-report.md
+          fi
+          
+          echo "" >> cleanup-report.md
+          echo "## Configuration" >> cleanup-report.md
+          echo "- **Protected patterns:** \`${{ steps.setup.outputs.protected_branches }}\`" >> cleanup-report.md
+          
+          # Display the report
+          echo "Generated cleanup report:"
+          cat cleanup-report.md
+
+      - name: Check final state
+        run: |
+          echo "=== FINAL REPOSITORY STATE ==="
+          echo "Remaining branches:"
+          git ls-remote --heads origin | sed 's/.*refs\/heads\//  /'
+          
+          remaining_count=$(git ls-remote --heads origin | wc -l)
+          echo ""
+          echo "Total remaining branches: $remaining_count"
+          
+          if [ "${{ steps.setup.outputs.dry_run }}" == "false" ]; then
+            expected_remaining=$(({{ steps.list_branches.outputs.total_branches }} - ${{ steps.delete.outputs.deleted_count }}))
+            echo "Expected remaining: $expected_remaining"
+            
+            if [ "$remaining_count" -eq "$expected_remaining" ]; then
+              echo "✅ Branch count matches expected result"
+            else
+              echo "⚠️  Branch count mismatch - manual verification recommended"
+            fi
+          fi
