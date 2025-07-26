@@ -43,18 +43,21 @@ In Terminal, type these commands one at a time and press Enter after each:
    ```
    mkdir -p ~/.ssh
    ```
+   ✅ **What this does**: Creates a hidden folder called `.ssh` in your home directory
 
-2. Set proper permissions:
+2. Set proper permissions (important for security):
    ```
    chmod 700 ~/.ssh
    ```
+   ✅ **What this does**: Makes sure only you can access your SSH folder
 
 3. Generate your SSH key:
    ```
    ssh-keygen -t ed25519 -f ~/.ssh/move_key -N ""
    ```
+   ⚠️ **Important**: Those are two quote marks at the end (""), not one
    
-   This creates two files: `move_key` (private key) and `move_key.pub` (public key)
+   ✅ **What this creates**: Two files - `move_key` (your private key - keep this secret!) and `move_key.pub` (your public key - safe to share)
 
 ## Step 4: View Your Public Key
 
@@ -67,10 +70,16 @@ Copy the entire output (it starts with `ssh-ed25519`). You'll need this in the n
 
 ## Step 5: Add Your Key to the Move
 
-1. Open your web browser (Firefox, Chrome, etc.)
-2. Go to: `http://move.local/development/ssh`
-3. Paste your public key into the text box
-4. Click "Save"
+1. Open your web browser (Firefox, Chrome, Chromium - any will work)
+2. Type this address: `http://move.local/development/ssh`
+   
+   ⚠️ **Can't find move.local?** Try the troubleshooting section for finding your Move's IP address
+   
+3. Paste your public key (the long text from Step 4) into the text box
+   
+   ✅ **Double-check**: Your key should start with `ssh-ed25519` and be one long line
+   
+4. Click "Save" to store your key on the Move
 
 ## Step 6: Test SSH Connection
 

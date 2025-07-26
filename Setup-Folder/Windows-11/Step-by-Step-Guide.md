@@ -26,19 +26,21 @@ Windows 11 comes with SSH built-in, but it might need to be enabled:
 
 ## Step 3: Generate SSH Key
 
-In the Command Prompt, type these commands one at a time:
+In the Command Prompt, type these commands one at a time and press Enter after each:
 
 1. Create a folder for SSH keys:
    ```
    mkdir %USERPROFILE%\.ssh
    ```
+   ⚠️ **Important**: Type this exactly as shown, including the dots and slashes
 
 2. Generate your SSH key:
    ```
    ssh-keygen -t ed25519 -f %USERPROFILE%\.ssh\move_key -N ""
    ```
+   ⚠️ **Important**: Those are two quote marks at the end (""), not one
    
-   This creates two files: `move_key` (private key) and `move_key.pub` (public key)
+   ✅ **What this does**: Creates two files: `move_key` (your private key - keep this secret!) and `move_key.pub` (your public key - safe to share)
 
 ## Step 4: View Your Public Key
 
@@ -51,10 +53,16 @@ Copy the entire output (it starts with `ssh-ed25519`). You'll need this in the n
 
 ## Step 5: Add Your Key to the Move
 
-1. Open your web browser
-2. Go to: `http://move.local/development/ssh`
-3. Paste your public key into the text box
-4. Click "Save"
+1. Open your web browser (Edge, Chrome, Firefox - any will work)
+2. Type this address: `http://move.local/development/ssh`
+   
+   ⚠️ **Can't find move.local?** Make sure your Move and computer are on the same Wi-Fi network
+   
+3. Paste your public key (the long text from Step 4) into the text box
+   
+   ✅ **Double-check**: Your key should start with `ssh-ed25519` and be one long line
+   
+4. Click "Save" to store your key on the Move
 
 ## Step 6: Test SSH Connection
 
@@ -63,9 +71,15 @@ Back in Command Prompt, test the connection:
 ssh -i %USERPROFILE%\.ssh\move_key ableton@move.local
 ```
 
-If this is your first time connecting, type `yes` when asked about the host fingerprint.
+**What to expect:**
+- If this is your first time connecting, you'll see a message asking about "host fingerprint" → Type `yes` and press Enter
+- You should see a welcome message from your Move
+- You'll see a new prompt that looks different - this means you're now connected to your Move!
 
-You should see a welcome message from your Move. Type `exit` to disconnect.
+✅ **Success**: If you see a welcome message, it worked!  
+❌ **Problem**: If you get "Connection refused" or similar, check the troubleshooting section
+
+When done testing, type `exit` and press Enter to disconnect.
 
 ## Step 7: Transfer Files to Your Move
 
