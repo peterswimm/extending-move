@@ -40,6 +40,8 @@ echo "=== DELETING REMOTE COPILOT BRANCHES ==="
 
 # List of remote copilot branches to delete (identified from git ls-remote)
 remote_branches=(
+    "copilot/fix-33328827-e681-4e0c-a608-eb0ac73aa115"
+    "copilot/fix-7af608f7-5a30-470e-8cd3-c9c8bc4e24d1"
     "copilot/fix-9852002c-2c5d-4738-8110-c1211a19b711"
     "copilot/fix-9aad2147-9ea5-494d-b88a-e5d9817183d4"
     "copilot/fix-a113d2e0-5946-4325-a698-49bb446ddfdf"
