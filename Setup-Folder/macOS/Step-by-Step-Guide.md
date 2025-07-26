@@ -2,7 +2,46 @@
 
 This guide will walk you through setting up the Extending Move tools on macOS.
 
-## Prerequisites
+## Quick Setup (Recommended)
+
+The fastest way to get started is using our automated setup helper:
+
+### Option A: Automated Setup Helper
+
+1. **Download the repository files** or use the commands below
+2. **Open Terminal**
+3. **Download and run the setup helper:**
+   ```bash
+   curl -O https://raw.githubusercontent.com/peterswimm/extending-move/main/Setup-Folder/macOS/setup-helper.sh
+   chmod +x setup-helper.sh
+   ./setup-helper.sh
+   ```
+
+   Or if you've already downloaded the repository:
+   ```bash
+   cd extending-move/Setup-Folder/macOS
+   ./setup-helper.sh
+   ```
+
+The helper script will automatically:
+- Install Homebrew (if not already installed)
+- Install required dependencies (Git, Python 3)
+- Clone the extending-move repository
+- Generate SSH keys and configure secure connection
+- Install extending-move on your Move device
+
+**Custom Move Address:** If your Move has a different address:
+```bash
+./setup-helper.sh your-move-address.local
+```
+
+---
+
+## Manual Setup (Alternative)
+
+If you prefer to set up manually or need to troubleshoot the automated process:
+
+### Prerequisites
 
 Before starting, ensure you have the following installed:
 
@@ -38,7 +77,7 @@ SSH is pre-installed on macOS. Verify it's working:
 ssh -V
 ```
 
-## Setup Process
+## Manual Setup Process
 
 ### Step 1: Clone the Repository
 ```bash

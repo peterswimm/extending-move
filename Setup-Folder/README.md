@@ -7,16 +7,48 @@ Welcome to the Extending Move setup guides! This folder contains platform-specif
 Choose your operating system and follow the appropriate guide:
 
 ### 🪟 [Windows 11](Windows-11/)
+- **🚀 [Quick Setup](Windows-11/setup-helper.ps1)** - Automated setup script (PowerShell)
 - [Step-by-Step Guide](Windows-11/Step-by-Step-Guide.md) - Complete setup using WSL
 - [Troubleshooting](Windows-11/Troubleshooting-Links.md) - WSL, SSH, and network issues
 
 ### 🍎 [macOS](macOS/)
+- **🚀 [Quick Setup](macOS/setup-helper.sh)** - Automated setup script (Bash)
 - [Step-by-Step Guide](macOS/Step-by-Step-Guide.md) - Native macOS setup with Homebrew
 - [Troubleshooting](macOS/Troubleshooting-Links.md) - Bonjour, SSH, and Keychain issues
 
 ### 🐧 [Linux](Linux/)
+- **🚀 [Quick Setup](Linux/setup-helper.sh)** - Automated setup script (Bash)
 - [Step-by-Step Guide](Linux/Step-by-Step-Guide.md) - Multi-distribution support
 - [Troubleshooting](Linux/Troubleshooting-Links.md) - Avahi, SSH, and network configuration
+
+## Automated Setup Scripts
+
+Each platform now includes a helper script for one-click setup:
+
+**Windows 11:**
+```powershell
+# Run in PowerShell as Administrator
+.\Setup-Folder\Windows-11\setup-helper.ps1
+```
+
+**macOS:**
+```bash
+# Run in Terminal
+./Setup-Folder/macOS/setup-helper.sh
+```
+
+**Linux:**
+```bash
+# Run in Terminal
+./Setup-Folder/Linux/setup-helper.sh
+```
+
+These scripts automatically handle:
+- Installing prerequisites and dependencies
+- Configuring SSH keys and connections
+- Setting up network resolution (mDNS/Avahi)
+- Cloning the repository
+- Running the main installation process
 
 ## What You'll Learn
 

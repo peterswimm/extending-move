@@ -2,7 +2,54 @@
 
 This guide will walk you through setting up the Extending Move tools on Linux distributions.
 
-## Prerequisites
+## Quick Setup (Recommended)
+
+The fastest way to get started is using our automated setup helper:
+
+### Option A: Automated Setup Helper
+
+1. **Download the repository files** or use the commands below
+2. **Open Terminal**
+3. **Download and run the setup helper:**
+   ```bash
+   curl -O https://raw.githubusercontent.com/peterswimm/extending-move/main/Setup-Folder/Linux/setup-helper.sh
+   chmod +x setup-helper.sh
+   ./setup-helper.sh
+   ```
+
+   Or if you've already downloaded the repository:
+   ```bash
+   cd extending-move/Setup-Folder/Linux
+   ./setup-helper.sh
+   ```
+
+The helper script will automatically:
+- Detect your Linux distribution (Ubuntu/Debian, Fedora/CentOS, Arch Linux, openSUSE)
+- Install required dependencies (Git, SSH, Python 3, Avahi for mDNS)
+- Configure mDNS resolution for .local addresses
+- Clone the extending-move repository
+- Generate SSH keys and configure secure connection
+- Install extending-move on your Move device
+
+**Custom Move Address:** If your Move has a different address:
+```bash
+./setup-helper.sh your-move-address.local
+```
+
+**Supported Distributions:**
+- Ubuntu/Debian (apt)
+- Fedora (dnf)
+- CentOS/RHEL (yum/dnf)
+- Arch Linux/Manjaro (pacman)
+- openSUSE/SLES (zypper)
+
+---
+
+## Manual Setup (Alternative)
+
+If you prefer to set up manually or need to troubleshoot the automated process:
+
+### Prerequisites
 
 The exact commands may vary depending on your Linux distribution. Examples are provided for Ubuntu/Debian, Fedora/CentOS, and Arch Linux.
 

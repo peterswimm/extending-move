@@ -2,7 +2,39 @@
 
 This guide will walk you through setting up the Extending Move tools on Windows 11.
 
-## Prerequisites
+## Quick Setup (Recommended)
+
+The fastest way to get started is using our automated setup helper:
+
+### Option A: Automated Setup Helper
+
+1. **Download the repository files** or clone using Git
+2. **Open PowerShell as Administrator** (required for WSL installation)
+3. **Navigate to the Setup-Folder/Windows-11 directory**
+4. **Run the setup helper:**
+   ```powershell
+   .\setup-helper.ps1
+   ```
+
+The helper script will automatically:
+- Install Windows Subsystem for Linux (WSL) if needed
+- Set up the Linux environment with all required packages
+- Clone the extending-move repository
+- Generate SSH keys and configure secure connection
+- Install extending-move on your Move device
+
+**Note:** If WSL is already installed, you can skip the administrator requirement:
+```powershell
+.\setup-helper.ps1 -SkipWSL
+```
+
+---
+
+## Manual Setup (Alternative)
+
+If you prefer to set up manually or need to troubleshoot the automated process:
+
+### Prerequisites
 
 Before starting, ensure you have the following installed:
 
@@ -31,7 +63,7 @@ sudo apt install openssh-client
 sudo apt install python3 python3-pip
 ```
 
-## Setup Process
+## Manual Setup Process
 
 ### Step 1: Clone the Repository
 ```bash
