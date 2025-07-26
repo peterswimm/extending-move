@@ -2,6 +2,20 @@
 
 This guide will help you set up the extending-move companion webserver on your Linux system to work with your Ableton Move device.
 
+## Quick Start (Recommended)
+
+For an automated setup experience, run the simple setup script:
+
+1. Download this repository
+2. Open your terminal and navigate to `Setup-Folder/Linux/`
+3. Run: `./simple.sh`
+
+The script will detect your Linux distribution, install prerequisites, and guide you through the entire setup process.
+
+## Manual Setup Instructions
+
+If you prefer manual setup or the automated script doesn't work for your distribution, follow the detailed instructions below:
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your Linux system:

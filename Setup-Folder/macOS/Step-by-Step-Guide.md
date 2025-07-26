@@ -2,6 +2,20 @@
 
 This guide will help you set up the extending-move companion webserver on your macOS system to work with your Ableton Move device.
 
+## Quick Start (Recommended)
+
+For an automated setup experience, run the simple setup script:
+
+1. Download this repository
+2. Open **Terminal** and navigate to `Setup-Folder/macOS/`
+3. Run: `./simple.sh`
+
+The script will guide you through the entire setup process automatically, including prerequisite installation.
+
+## Manual Setup Instructions
+
+If you prefer manual setup or the automated script doesn't work for your system, follow the detailed instructions below:
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your macOS system:
