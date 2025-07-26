@@ -1,0 +1,137 @@
+name: Automated Branch Cleanup
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+
+jobs:
+  cleanup-branches:
+    # Only run when PR is merged or when pushed to main
+    if: (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      actions: write
+      pull-requests: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: List branches before cleanup
+        run: |
+          echo "=== Branches before cleanup ==="
+          git ls-remote origin | grep copilot || echo "No copilot branches found"
+
+      - name: Delete obsolete branches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Starting automated branch cleanup ==="
+          
+          # List of branches to delete
+          BRANCHES_TO_DELETE=(
+            "copilot/fix-9aad2147-9ea5-494d-b88a-e5d9817183d4"
+            "copilot/fix-9852002c-2c5d-4738-8110-c1211a19b711"
+            "copilot/fix-a113d2e0-5946-4325-a698-49bb446ddfdf"
+            "copilot/fix-add6b6e0-ac13-41b2-99d6-9c2200d4b427"
+            "copilot/fix-daeaa56a-6264-492c-9454-2644dc2d104f"
+            "copilot/fix-ec264cb5-e87d-4b7a-bba1-8bdd9f358e37"
+            "copilot/fix-f5b33083-e598-43d2-a2fc-4885dbae2829"
+            "copilot/fix-fb1624c3-19e4-4df1-93d0-6438cef8182f"
+          )
+          
+          # Current working branch to preserve
+          PRESERVE_BRANCH="copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76"
+          
+          deleted_count=0
+          skipped_count=0
+          
+          for branch in "${BRANCHES_TO_DELETE[@]}"; do
+            echo "Processing branch: $branch"
+            
+            # Check if branch exists
+            if git ls-remote --exit-code origin "refs/heads/$branch" > /dev/null 2>&1; then
+              echo "  ✓ Branch exists, deleting..."
+              
+              # Delete the branch using GitHub CLI or git push
+              if git push origin --delete "$branch" 2>/dev/null; then
+                echo "  ✅ Successfully deleted: $branch"
+                ((deleted_count++))
+              else
+                echo "  ❌ Failed to delete: $branch"
+              fi
+            else
+              echo "  ⏭️  Branch does not exist, skipping: $branch"
+              ((skipped_count++))
+            fi
+            echo ""
+          done
+          
+          echo "=== Cleanup Summary ==="
+          echo "Branches deleted: $deleted_count"
+          echo "Branches skipped (not found): $skipped_count"
+          echo "Branches preserved: main, $PRESERVE_BRANCH"
+
+      - name: Verify cleanup results
+        run: |
+          echo "=== Branches after cleanup ==="
+          echo "All remaining branches:"
+          git ls-remote origin | grep -E "(main|copilot)" || echo "No main or copilot branches found"
+          
+          echo ""
+          echo "Expected remaining branches:"
+          echo "- main (primary branch)"
+          echo "- copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76 (preserved working branch)"
+          
+          # Check if any target branches still exist
+          REMAINING_TARGET_BRANCHES=$(git ls-remote origin | grep -E "copilot/fix-(9aad2147|9852002c|a113d2e0|add6b6e0|daeaa56a|ec264cb5|f5b33083|fb1624c3)" || true)
+          
+          if [ -z "$REMAINING_TARGET_BRANCHES" ]; then
+            echo ""
+            echo "✅ SUCCESS: All target branches have been deleted"
+          else
+            echo ""
+            echo "⚠️  WARNING: Some target branches still exist:"
+            echo "$REMAINING_TARGET_BRANCHES"
+          fi
+
+      - name: Create cleanup report
+        if: always()
+        run: |
+          echo "# Branch Cleanup Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Automated cleanup of obsolete copilot branches completed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Target Branches" >> $GITHUB_STEP_SUMMARY
+          echo "The following branches were targeted for deletion:" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-9aad2147-9ea5-494d-b88a-e5d9817183d4" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-9852002c-2c5d-4738-8110-c1211a19b711" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-a113d2e0-5946-4325-a698-49bb446ddfdf" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-add6b6e0-ac13-41b2-99d6-9c2200d4b427" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-daeaa56a-6264-492c-9454-2644dc2d104f" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-ec264cb5-e87d-4b7a-bba1-8bdd9f358e37" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-f5b33083-e598-43d2-a2fc-4885dbae2829" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-fb1624c3-19e4-4df1-93d0-6438cef8182f" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Preserved Branches" >> $GITHUB_STEP_SUMMARY
+          echo "- main (primary branch)" >> $GITHUB_STEP_SUMMARY
+          echo "- copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76 (current working branch)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Results" >> $GITHUB_STEP_SUMMARY
+          git ls-remote origin | grep -E "(main|copilot)" >> $GITHUB_STEP_SUMMARY || echo "No main or copilot branches found" >> $GITHUB_STEP_SUMMARY

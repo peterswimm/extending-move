@@ -1,12 +1,19 @@
 #!/bin/bash
 
-# Branch Cleanup Script for extending-move repository
-# This script removes obsolete copilot branches as specified in the cleanup requirements
+# Branch Cleanup Script for extending-move repository (FALLBACK OPTION)
+# This script serves as a manual fallback if the automated GitHub Actions workflow fails
 # 
+# PRIMARY METHOD: Automated via GitHub Actions (.github/workflows/branch-cleanup.yml)
+# FALLBACK METHOD: This manual script
+#
 # Generated on: $(date)
 # Repository: peterswimm/extending-move
 
-echo "Starting branch cleanup for extending-move repository..."
+echo "⚠️  NOTICE: This is a FALLBACK cleanup script"
+echo "The primary cleanup method is automated via GitHub Actions"
+echo "Only use this script if the automated workflow has failed"
+echo ""
+echo "Starting manual branch cleanup for extending-move repository..."
 echo "This script will delete 8 copilot branches that are no longer needed."
 echo ""
 
@@ -47,7 +54,7 @@ echo "8/8 Deleting copilot/fix-fb1624c3-19e4-4df1-93d0-6438cef8182f..."
 git push origin --delete copilot/fix-fb1624c3-19e4-4df1-93d0-6438cef8182f
 
 echo ""
-echo "Branch cleanup completed!"
+echo "Manual branch cleanup completed!"
 echo ""
 echo "Remaining branches after cleanup:"
 git ls-remote origin | grep -E "(main|copilot)"
@@ -58,7 +65,10 @@ echo "- main (primary branch)"
 echo "- copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76 (current working branch - not deleted)"
 
 echo ""
-echo "Cleanup summary:"
+echo "Manual cleanup summary:"
 echo "✓ Deleted 8 obsolete copilot branches"
 echo "✓ Preserved main branch" 
 echo "✓ Preserved current working branch (copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76)"
+echo ""
+echo "💡 TIP: For future cleanups, use the automated GitHub Actions workflow"
+echo "   (.github/workflows/branch-cleanup.yml) which runs automatically on PR merge"

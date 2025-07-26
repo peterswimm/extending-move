@@ -1,12 +1,19 @@
 # Branch Cleanup Documentation
 
 ## Overview
-This document outlines the branch cleanup requirements for the `peterswimm/extending-move` repository. The cleanup involves removing 8 obsolete copilot branches while preserving the main branch and current working branch.
+This document outlines the automated branch cleanup implementation for the `peterswimm/extending-move` repository. The cleanup involves removing 8 obsolete copilot branches while preserving the main branch and current working branch.
+
+## Automated Cleanup via GitHub Actions
+
+### ✅ **AUTOMATED SOLUTION IMPLEMENTED**
+This repository now includes a GitHub Actions workflow (`.github/workflows/branch-cleanup.yml`) that will **automatically delete the specified branches** when this PR is merged to main.
+
+**No manual intervention required** - the cleanup will happen automatically upon PR approval and merge.
 
 ## Current Repository State
 
-### Branches Confirmed to Exist (as of latest check)
-The following 8 copilot branches exist on the remote repository and need to be deleted:
+### Branches Targeted for Deletion
+The following 8 copilot branches will be automatically deleted by the GitHub Actions workflow:
 
 1. `copilot/fix-9aad2147-9ea5-494d-b88a-e5d9817183d4` (commit: 6316c86868e77def1bb047dfc75be7b23c8bee91)
 2. `copilot/fix-9852002c-2c5d-4738-8110-c1211a19b711` (commit: 2a719f682b94195eeb8fdd008f0779151e2e95fa)
@@ -21,10 +28,59 @@ The following 8 copilot branches exist on the remote repository and need to be d
 - `main` (commit: 1a0b63a0dcf24ddf55497c3631ffe0176923a5f4) - Primary branch
 - `copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76` (commit: d00669777d278580f9aed7656b9f7e743f0a1fc9) - Current working branch
 
-## Required Actions
+## How It Works
 
-### Manual Execution Required
-Due to authentication limitations in the automated environment, the branch deletion commands must be executed manually by a user with push permissions to the repository.
+### Automated Workflow Triggers
+The GitHub Actions workflow will trigger automatically:
+- When this PR is **merged** to the main branch
+- When any code is **pushed** directly to the main branch
+
+### Workflow Process
+1. **Checkout repository** with full history
+2. **List existing branches** for verification
+3. **Delete each target branch** systematically
+4. **Verify cleanup results** and report status
+5. **Generate cleanup report** in the Actions summary
+
+### Safety Features
+- ✅ **Preserves main branch** - Never touches the primary branch
+- ✅ **Preserves working branch** - Current PR branch is protected
+- ✅ **Verification checks** - Confirms successful deletion
+- ✅ **Detailed logging** - Full audit trail of all actions
+- ✅ **Error handling** - Graceful handling of missing branches
+
+## Expected Outcome
+
+After the automated workflow completes successfully, the repository will contain:
+- ✅ `main` branch (preserved)
+- ✅ `copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76` (preserved - current working branch)
+- ❌ All 8 specified copilot branches (automatically deleted)
+
+## Monitoring the Cleanup
+
+### Via GitHub Actions
+1. Navigate to the **Actions** tab in the GitHub repository
+2. Look for the **"Automated Branch Cleanup"** workflow
+3. Monitor the execution status and logs
+4. View the cleanup report in the workflow summary
+
+### Manual Verification (Optional)
+If you want to verify the cleanup manually:
+
+```bash
+# Check remaining remote branches
+git ls-remote origin
+
+# Specifically check for copilot branches  
+git ls-remote origin | grep copilot
+
+# Expected output should only show:
+# copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76
+```
+
+## Fallback: Manual Execution (If Automated Workflow Fails)
+
+If for any reason the automated workflow fails, the cleanup can still be performed manually:
 
 ### Execution Steps
 
@@ -45,37 +101,10 @@ Due to authentication limitations in the automated environment, the branch delet
    git push origin --delete copilot/fix-fb1624c3-19e4-4df1-93d0-6438cef8182f
    ```
 
-3. **Verify cleanup:**
-   ```bash
-   git ls-remote origin | grep copilot
-   ```
-
-### Alternative: Execute Shell Script
-A shell script `branch_cleanup.sh` has been created that contains all the necessary commands. Execute it with:
+### Alternative: Execute Shell Script (Legacy)
+The shell script `branch_cleanup.sh` is still available for manual execution:
 ```bash
 ./branch_cleanup.sh
-```
-
-## Expected Outcome
-
-After successful execution, the repository should contain:
-- ✅ `main` branch (preserved)
-- ✅ `copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76` (preserved - current working branch)
-- ❌ All 8 specified copilot branches (deleted)
-
-## Verification Commands
-
-To verify the cleanup was successful:
-
-```bash
-# Check remaining remote branches
-git ls-remote origin
-
-# Specifically check for copilot branches
-git ls-remote origin | grep copilot
-
-# Expected output should only show:
-# copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76
 ```
 
 ## Safety Notes
@@ -83,10 +112,16 @@ git ls-remote origin | grep copilot
 - ⚠️ **Backup Consideration**: These branches are being deleted permanently. Ensure any important work has been merged or backed up.
 - ✅ **Current Work**: The current working branch `copilot/fix-c93868bf-3eeb-4455-abe3-79990bb10d76` is preserved.
 - ✅ **Main Branch**: The main branch remains untouched.
+- ✅ **Automated Safety**: The workflow includes verification steps to ensure only target branches are deleted.
 
 ## Troubleshooting
 
-If any branch deletion fails:
+### If Automated Workflow Fails:
+1. Check the **Actions** tab for error details
+2. Verify GitHub Actions permissions are enabled
+3. Fall back to manual execution (see above)
+
+### If Manual Execution Fails:
 1. Check that you have push permissions to the repository
 2. Verify the branch still exists: `git ls-remote origin | grep <branch-name>`
 3. Ensure you're authenticated properly with GitHub
@@ -94,4 +129,4 @@ If any branch deletion fails:
 
 ---
 
-*This documentation was generated as part of the automated branch cleanup task for the extending-move repository.*
+*This documentation was generated as part of the automated branch cleanup implementation for the extending-move repository. The cleanup is now handled automatically via GitHub Actions workflow.*

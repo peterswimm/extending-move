@@ -2,9 +2,14 @@
 
 # Branch Status Verification Script
 # This script checks the current state of branches in the extending-move repository
+# Use this to verify the automated GitHub Actions cleanup or manual cleanup results
 
 echo "Branch Status Verification for extending-move repository"
 echo "======================================================="
+echo ""
+echo "💡 NOTE: This repository uses automated branch cleanup via GitHub Actions"
+echo "   Primary cleanup method: .github/workflows/branch-cleanup.yml"
+echo "   This script verifies the cleanup results"
 echo ""
 
 # Fetch latest information
@@ -74,10 +79,11 @@ if [ $remaining_count -eq 0 ]; then
     echo ""
     echo "🎉 SUCCESS: All target branches have been deleted!"
     echo "✅ Repository cleanup is complete."
+    echo "✅ Automated GitHub Actions workflow succeeded."
 else
     echo ""
     echo "⚠️  PENDING: $remaining_count branches still need to be deleted."
-    echo "📋 Run the branch_cleanup.sh script to complete the cleanup."
+    echo "📋 Check the GitHub Actions workflow status, or run branch_cleanup.sh manually as fallback."
 fi
 
 echo ""
