@@ -10,6 +10,7 @@ from flask import (
     g,
     make_response,
 )
+from flask_socketio import SocketIO, emit
 import os
 import atexit
 import signal
@@ -47,6 +48,7 @@ from handlers.adsr_handler_class import AdsrHandler
 from handlers.cyc_env_handler_class import CycEnvHandler
 from handlers.lfo_handler_class import LfoHandler
 from handlers.set_inspector_handler_class import SetInspectorHandler
+from handlers.m8c_display_handler import M8CDisplayHandler
 from core.refresh_handler import refresh_library
 from core.file_browser import generate_dir_html
 
@@ -120,6 +122,10 @@ class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
 
 
 app = Flask(__name__, template_folder="templates_jinja")
+
+# Initialize Flask-SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+
 reverse_handler = ReverseHandler()
 restore_handler = RestoreHandler()
 slice_handler = SliceHandler()
@@ -137,6 +143,7 @@ adsr_handler = AdsrHandler()
 cyc_env_handler = CycEnvHandler()
 lfo_handler = LfoHandler()
 set_inspector_handler = SetInspectorHandler()
+m8c_handler = M8CDisplayHandler()
 
 
 @app.before_request
@@ -258,6 +265,103 @@ def warm_up_modules():
 @app.route("/")
 def index():
     return redirect("/restore")
+
+
+@app.route("/m8c-display")
+def m8c_display():
+    """Serve M8C display page."""
+    result = m8c_handler.handle_get()
+    return render_template(
+        "m8c_display.html",
+        devices=result.get('devices', []),
+        status=result.get('status', {}),
+        message=result.get('message'),
+        message_type=result.get('message_type'),
+        active_tab="m8c-display"
+    )
+
+
+@app.route("/api/m8c/devices", methods=["GET"])
+def m8c_devices():
+    """Get available M8 devices."""
+    result = m8c_handler.handle_get()
+    return jsonify({
+        'devices': result.get('devices', []),
+        'status': result.get('status', {})
+    })
+
+
+@app.route("/api/m8c/connect", methods=["POST"])
+def m8c_connect():
+    """Connect to M8 device."""
+    form = SimpleForm(request.get_json() or {})
+    form['action'] = 'connect'
+    result = m8c_handler.handle_post(form)
+    return jsonify(result)
+
+
+@app.route("/api/m8c/disconnect", methods=["POST"])
+def m8c_disconnect():
+    """Disconnect from M8 device."""
+    form = SimpleForm({'action': 'disconnect'})
+    result = m8c_handler.handle_post(form)
+    return jsonify(result)
+
+
+@app.route("/api/m8c/recording/start", methods=["POST"])
+def m8c_start_recording():
+    """Start recording M8 display."""
+    form = SimpleForm({'action': 'start_recording'})
+    result = m8c_handler.handle_post(form)
+    return jsonify(result)
+
+
+@app.route("/api/m8c/recording/stop", methods=["POST"])
+def m8c_stop_recording():
+    """Stop recording M8 display."""
+    data = request.get_json() or {}
+    form = SimpleForm({
+        'action': 'stop_recording',
+        'filename': data.get('filename')
+    })
+    result = m8c_handler.handle_post(form)
+    return jsonify(result)
+
+
+# WebSocket handlers for M8C
+@socketio.on('connect', namespace='/m8c')
+def m8c_ws_connect():
+    """Handle M8C WebSocket connection."""
+    logger.info("M8C WebSocket client connected")
+    
+    # Set up emit callback for the bridge
+    def emit_to_client(event, data):
+        emit(event, data, namespace='/m8c', broadcast=True)
+    
+    m8c_handler.set_emit_callback(emit_to_client)
+    
+    # Send initial status
+    emit('status', m8c_handler.get_bridge().get_status())
+
+
+@socketio.on('disconnect', namespace='/m8c')
+def m8c_ws_disconnect():
+    """Handle M8C WebSocket disconnection."""
+    logger.info("M8C WebSocket client disconnected")
+
+
+@socketio.on('input', namespace='/m8c')
+def m8c_ws_input(data):
+    """Handle input from M8C WebSocket client."""
+    result = m8c_handler.handle_websocket_message(data)
+    if 'error' in result:
+        emit('error', result)
+
+
+@socketio.on('get_status', namespace='/m8c')
+def m8c_ws_get_status():
+    """Get M8C status via WebSocket."""
+    emit('status', m8c_handler.get_bridge().get_status())
 
 
 @app.route("/browse-dir")
@@ -991,15 +1095,10 @@ if __name__ == "__main__":
 
     host = "0.0.0.0"
     port = read_port()
-    logger.info("Starting webserver")
-    with make_server(
-        host,
-        port,
-        app,
-        server_class=ThreadingWSGIServer,
-    ) as httpd:
-        logger.info("Server started http://%s:%s", host, port)
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            pass
+    logger.info("Starting webserver with WebSocket support on port %d", port)
+    
+    # Use socketio.run instead of make_server for WebSocket support
+    try:
+        socketio.run(app, host=host, port=port, debug=False, use_reloader=False, log_output=True)
+    except KeyboardInterrupt:
+        logger.info("Server interrupted by user")

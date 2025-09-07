@@ -7,3 +7,11 @@ __pycache__
 *server.log
 .venv/
 move-webserver.pid
+
+# Claude-specific files
+.claude/
+CLAUDE.md
+claude.json
+.claudeignore
+*.claude
+.claude-*
