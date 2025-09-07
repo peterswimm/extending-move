@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+
+{% block title %}Universal Display{% endblock %}
+
+{% block head %}
+<link rel="manifest" href="/static/m8c/manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    #display-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        background: #1a1a1a;
+        min-height: calc(100vh - 60px);
+    }
+    
+    #display-canvas {
+        background: #000;
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+        border: 2px solid #333;
+        cursor: crosshair;
+        touch-action: none;
+    }
+    
+    .mode-selector {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #2a2a2a;
+        border-radius: 4px;
+        width: 100%;
+        max-width: 640px;
+    }
+    
+    .mode-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 15px;
+    }
+    
+    .mode-btn {
+        padding: 10px 20px;
+        background: #3a3a3a;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .mode-btn:hover {
+        background: #4a4a4a;
+    }
+    
+    .mode-btn.active {
+        background: #5a5a5a;
+        border-color: #7a7a7a;
+        font-weight: bold;
+    }
+    
+    .controls {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .control-btn {
+        padding: 10px 20px;
+        background: #2a2a2a;
+        color: #fff;
+        border: 1px solid #444;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+    }
+    
+    .control-btn:hover {
+        background: #3a3a3a;
+    }
+    
+    .control-btn:active,
+    .control-btn.pressed {
+        background: #4a4a4a;
+        transform: translateY(1px);
+    }
+    
+    .status-bar {
+        width: 100%;
+        max-width: 640px;
+        padding: 10px;
+        background: #2a2a2a;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    
+    .status-indicator.connected {
+        background: #4caf50;
+        animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.disconnected {
+        background: #f44336;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .device-info {
+        display: flex;
+        gap: 20px;
+        font-size: 12px;
+        color: #aaa;
+    }
+    
+    /* Norns-specific controls */
+    .norns-controls {
+        display: none;
+        margin-top: 20px;
+    }
+    
+    .norns-controls.active {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+    
+    .encoder-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .encoder {
+        width: 60px;
+        height: 60px;
+        border: 2px solid #666;
+        border-radius: 50%;
+        background: #2a2a2a;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    .encoder::after {
+        content: '';
+        position: absolute;
+        top: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 2px;
+        height: 20px;
+        background: #888;
+    }
+    
+    .key-group {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .key-btn {
+        width: 50px;
+        height: 50px;
+        background: #2a2a2a;
+        color: #fff;
+        border: 1px solid #444;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+    }
+    
+    .key-btn:active,
+    .key-btn.pressed {
+        background: #4a4a4a;
+        border-color: #666;
+    }
+    
+    /* M8 controls */
+    .m8-controls {
+        display: none;
+        grid-template-columns: repeat(3, 60px);
+        gap: 5px;
+        margin-top: 20px;
+    }
+    
+    .m8-controls.active {
+        display: grid;
+    }
+    
+    .fullscreen-btn {
+        position: fixed;
+        top: 70px;
+        right: 10px;
+        z-index: 1000;
+        background: #2a2a2a;
+        color: #fff;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="display-container">
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
+    
+    <div class="status-bar">
+        <div>
+            <span class="status-indicator" id="connection-status"></span>
+            <span id="connection-text">Disconnected</span>
+        </div>
+        <div class="device-info">
+            <span id="mode-info">Mode: Norns</span>
+            <span id="device-info"></span>
+        </div>
+    </div>
+    
+    <div class="mode-selector">
+        <label>Display Mode:</label>
+        <div class="mode-buttons">
+            <button class="mode-btn active" data-mode="norns" onclick="setMode('norns')">Norns (128×64)</button>
+            <button class="mode-btn" data-mode="m8c" onclick="setMode('m8c')">M8 Tracker (320×240)</button>
+        </div>
+        
+        <div id="m8-device-selector" style="display: none;">
+            <label for="device-select">M8 Device:</label>
+            <select id="device-select">
+                <option value="">-- Select Device --</option>
+                {% for device in m8_devices %}
+                <option value="{{ device.path }}">{{ device.description }} ({{ device.path }})</option>
+                {% endfor %}
+            </select>
+            <button class="control-btn" onclick="connectM8()">Connect M8</button>
+        </div>
+        
+        <div id="norns-info" style="margin-top: 10px;">
+            <small>OSC Port: {{ norns_status.port | default(10111) }} | 
+                   Status: <span id="norns-status">{{ 'Running' if norns_status.running else 'Stopped' }}</span></small>
+        </div>
+    </div>
+    
+    <canvas id="display-canvas"></canvas>
+    
+    <div class="controls">
+        <button class="control-btn" onclick="changeScale()">Scale</button>
+        <button class="control-btn" onclick="clearDisplay()">Clear</button>
+        <button class="control-btn" onclick="toggleRecording()">
+            <span id="record-btn-text">Record</span>
+        </button>
+        <button class="control-btn" onclick="screenshot()">Screenshot</button>
+    </div>
+    
+    <!-- Norns Controls -->
+    <div class="norns-controls active" id="norns-controls">
+        <div class="encoder-group">
+            <label>E1</label>
+            <div class="encoder" data-enc="1" id="enc1"></div>
+        </div>
+        <div class="encoder-group">
+            <label>E2</label>
+            <div class="encoder" data-enc="2" id="enc2"></div>
+        </div>
+        <div class="encoder-group">
+            <label>E3</label>
+            <div class="encoder" data-enc="3" id="enc3"></div>
+        </div>
+        <div class="key-group">
+            <button class="key-btn" data-key="1">K1</button>
+            <button class="key-btn" data-key="2">K2</button>
+            <button class="key-btn" data-key="3">K3</button>
+        </div>
+    </div>
+    
+    <!-- M8 Controls -->
+    <div class="m8-controls" id="m8-controls">
+        <div class="key-btn key-empty"></div>
+        <div class="key-btn" data-m8key="up">↑</div>
+        <div class="key-btn key-empty"></div>
+        <div class="key-btn" data-m8key="left">←</div>
+        <div class="key-btn" data-m8key="play">▶</div>
+        <div class="key-btn" data-m8key="right">→</div>
+        <div class="key-btn" data-m8key="shift">⇧</div>
+        <div class="key-btn" data-m8key="down">↓</div>
+        <div class="key-btn" data-m8key="option">⌥</div>
+        <div class="key-btn key-empty"></div>
+        <div class="key-btn" data-m8key="edit">✎</div>
+        <div class="key-btn key-empty"></div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="/static/m8c/renderer.js"></script>
+<script>
+// Universal Display App
+class UniversalDisplay {
+    constructor() {
+        this.canvas = document.getElementById('display-canvas');
+        this.mode = 'norns';
+        this.renderer = new M8CRenderer(this.canvas, 'norns');
+        this.socket = null;
+        this.recording = false;
+        this.currentScale = 4;
+        
+        this.initWebSocket();
+        this.initControls();
+        this.startNornsProxy();
+    }
+    
+    initWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        
+        this.socket = io(`${protocol}//${host}/display`, {
+            transports: ['websocket'],
+            reconnection: true
+        });
+        
+        this.socket.on('connect', () => {
+            console.log('WebSocket connected');
+            this.updateStatus(true);
+        });
+        
+        this.socket.on('disconnect', () => {
+            console.log('WebSocket disconnected');
+            this.updateStatus(false);
+        });
+        
+        this.socket.on('display_command', (cmd) => {
+            this.renderer.processCommand(cmd);
+        });
+    }
+    
+    initControls() {
+        // Norns encoders
+        document.querySelectorAll('.encoder').forEach(enc => {
+            let startY = 0;
+            let startAngle = 0;
+            
+            enc.addEventListener('mousedown', (e) => {
+                startY = e.clientY;
+                startAngle = 0;
+                
+                const onMouseMove = (e) => {
+                    const delta = Math.floor((startY - e.clientY) / 10);
+                    if (delta !== 0) {
+                        this.sendNornsInput('enc', {
+                            n: parseInt(enc.dataset.enc),
+                            delta: delta
+                        });
+                        startY = e.clientY;
+                        
+                        // Visual rotation
+                        startAngle += delta * 10;
+                        enc.style.transform = `rotate(${startAngle}deg)`;
+                    }
+                };
+                
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    enc.style.transform = '';
+                };
+                
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        });
+        
+        // Norns keys
+        document.querySelectorAll('.key-btn[data-key]').forEach(btn => {
+            btn.addEventListener('mousedown', () => {
+                btn.classList.add('pressed');
+                this.sendNornsInput('key', {
+                    n: parseInt(btn.dataset.key),
+                    z: 1
+                });
+            });
+            
+            btn.addEventListener('mouseup', () => {
+                btn.classList.remove('pressed');
+                this.sendNornsInput('key', {
+                    n: parseInt(btn.dataset.key),
+                    z: 0
+                });
+            });
+        });
+        
+        // M8 keys
+        document.querySelectorAll('.key-btn[data-m8key]').forEach(btn => {
+            btn.addEventListener('mousedown', () => {
+                btn.classList.add('pressed');
+                this.sendM8Input(btn.dataset.m8key, true);
+            });
+            
+            btn.addEventListener('mouseup', () => {
+                btn.classList.remove('pressed');
+                this.sendM8Input(btn.dataset.m8key, false);
+            });
+        });
+    }
+    
+    setMode(mode) {
+        this.mode = mode;
+        
+        // Update UI
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        
+        document.getElementById('norns-controls').classList.toggle('active', mode === 'norns');
+        document.getElementById('m8-controls').classList.toggle('active', mode === 'm8c');
+        document.getElementById('m8-device-selector').style.display = mode === 'm8c' ? 'block' : 'none';
+        document.getElementById('norns-info').style.display = mode === 'norns' ? 'block' : 'none';
+        
+        // Update renderer
+        this.renderer.setMode(mode);
+        
+        // Update server
+        fetch('/api/display/mode', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'set_mode', mode: mode})
+        });
+        
+        document.getElementById('mode-info').textContent = `Mode: ${mode === 'norns' ? 'Norns' : 'M8'}`;
+    }
+    
+    startNornsProxy() {
+        fetch('/api/display/norns/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'start_norns'})
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  document.getElementById('norns-status').textContent = 'Running';
+              }
+          });
+    }
+    
+    sendNornsInput(type, data) {
+        if (this.socket) {
+            this.socket.emit('input', {
+                type: 'input',
+                data: {
+                    target: 'norns',
+                    ...data
+                }
+            });
+        }
+    }
+    
+    sendM8Input(key, pressed) {
+        if (this.socket) {
+            this.socket.emit('input', {
+                type: 'input',
+                data: {
+                    target: 'm8c',
+                    key: key,
+                    pressed: pressed
+                }
+            });
+        }
+    }
+    
+    changeScale() {
+        const scales = this.mode === 'norns' ? [2, 3, 4, 5, 6] : [1, 2, 3, 4];
+        const currentIndex = scales.indexOf(this.currentScale);
+        this.currentScale = scales[(currentIndex + 1) % scales.length];
+        this.renderer.setScale(this.currentScale);
+    }
+    
+    clearDisplay() {
+        this.renderer.clear();
+    }
+    
+    screenshot() {
+        const dataUrl = this.renderer.getScreenshot();
+        const link = document.createElement('a');
+        link.download = `${this.mode}-screenshot-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+    }
+    
+    updateStatus(connected) {
+        const indicator = document.getElementById('connection-status');
+        const text = document.getElementById('connection-text');
+        
+        if (connected) {
+            indicator.classList.add('connected');
+            indicator.classList.remove('disconnected');
+            text.textContent = 'Connected';
+        } else {
+            indicator.classList.remove('connected');
+            indicator.classList.add('disconnected');
+            text.textContent = 'Disconnected';
+        }
+    }
+}
+
+// Initialize
+const display = new UniversalDisplay();
+
+// Global functions for HTML onclick
+function setMode(mode) { display.setMode(mode); }
+function changeScale() { display.changeScale(); }
+function clearDisplay() { display.clearDisplay(); }
+function screenshot() { display.screenshot(); }
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.getElementById('display-container').requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+function connectM8() {
+    const select = document.getElementById('device-select');
+    if (select.value) {
+        fetch('/api/display/m8/connect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'connect_m8',
+                device: select.value
+            })
+        });
+    }
+}
+</script>
+{% endblock %}

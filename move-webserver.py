@@ -49,6 +49,7 @@ from handlers.cyc_env_handler_class import CycEnvHandler
 from handlers.lfo_handler_class import LfoHandler
 from handlers.set_inspector_handler_class import SetInspectorHandler
 from handlers.m8c_display_handler import M8CDisplayHandler
+from handlers.universal_display_handler import UniversalDisplayHandler
 from core.refresh_handler import refresh_library
 from core.file_browser import generate_dir_html
 
@@ -144,6 +145,7 @@ cyc_env_handler = CycEnvHandler()
 lfo_handler = LfoHandler()
 set_inspector_handler = SetInspectorHandler()
 m8c_handler = M8CDisplayHandler()
+universal_display_handler = UniversalDisplayHandler()
 
 
 @app.before_request
@@ -264,7 +266,7 @@ def warm_up_modules():
 
 @app.route("/")
 def index():
-    return redirect("/restore")
+    return redirect("/display")
 
 
 @app.route("/m8c-display")
@@ -278,6 +280,22 @@ def m8c_display():
         message=result.get('message'),
         message_type=result.get('message_type'),
         active_tab="m8c-display"
+    )
+
+
+@app.route("/display")
+def universal_display():
+    """Serve universal display page."""
+    result = universal_display_handler.handle_get()
+    return render_template(
+        "universal_display.html",
+        mode=result.get('mode', 'norns'),
+        m8_devices=result.get('m8_devices', []),
+        norns_status=result.get('norns_status', {}),
+        m8c_status=result.get('m8c_status', {}),
+        message=result.get('message'),
+        message_type=result.get('message_type'),
+        active_tab="display"
     )
 
 
@@ -362,6 +380,85 @@ def m8c_ws_input(data):
 def m8c_ws_get_status():
     """Get M8C status via WebSocket."""
     emit('status', m8c_handler.get_bridge().get_status())
+
+
+# Universal Display WebSocket handlers
+@socketio.on('connect', namespace='/display')
+def universal_ws_connect():
+    """Handle Universal Display WebSocket connection."""
+    logger.info("Universal Display WebSocket client connected")
+    
+    # Set up emit callback for the handler
+    def emit_to_client(event, data):
+        emit(event, data, namespace='/display', broadcast=True)
+    
+    universal_display_handler.set_emit_callback(emit_to_client)
+    
+    # Send initial status
+    emit('status', {
+        'norns': universal_display_handler.get_norns_proxy().get_status(),
+        'm8c': universal_display_handler.get_m8c_handler().get_bridge().get_status(),
+        'mode': universal_display_handler._current_mode
+    })
+
+
+@socketio.on('disconnect', namespace='/display')
+def universal_ws_disconnect():
+    """Handle Universal Display WebSocket disconnection."""
+    logger.info("Universal Display WebSocket client disconnected")
+
+
+@socketio.on('input', namespace='/display')
+def universal_ws_input(data):
+    """Handle input from Universal Display WebSocket client."""
+    result = universal_display_handler.handle_websocket_message(data)
+    if 'error' in result:
+        emit('error', result)
+
+
+@socketio.on('get_status', namespace='/display')
+def universal_ws_get_status():
+    """Get Universal Display status via WebSocket."""
+    emit('status', {
+        'norns': universal_display_handler.get_norns_proxy().get_status(),
+        'm8c': universal_display_handler.get_m8c_handler().get_bridge().get_status(),
+        'mode': universal_display_handler._current_mode
+    })
+
+
+# API routes for Universal Display
+@app.route("/api/display/mode", methods=["POST"])
+def set_display_mode():
+    """Set display mode."""
+    data = request.get_json() or {}
+    form = SimpleForm(data)
+    result = universal_display_handler.handle_post(form)
+    return jsonify(result)
+
+
+@app.route("/api/display/norns/start", methods=["POST"])
+def start_norns_proxy():
+    """Start Norns proxy."""
+    form = SimpleForm({'action': 'start_norns'})
+    result = universal_display_handler.handle_post(form)
+    return jsonify(result)
+
+
+@app.route("/api/display/norns/stop", methods=["POST"])
+def stop_norns_proxy():
+    """Stop Norns proxy."""
+    form = SimpleForm({'action': 'stop_norns'})
+    result = universal_display_handler.handle_post(form)
+    return jsonify(result)
+
+
+@app.route("/api/display/m8/connect", methods=["POST"])
+def connect_m8_display():
+    """Connect M8 device via universal display."""
+    data = request.get_json() or {}
+    form = SimpleForm(data)
+    result = universal_display_handler.handle_post(form)
+    return jsonify(result)
 
 
 @app.route("/browse-dir")

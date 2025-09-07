@@ -4,14 +4,24 @@
  */
 
 class M8CRenderer {
-    constructor(canvas) {
+    constructor(canvas, mode = 'norns') {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d', { alpha: false });
         
-        // Display dimensions (MK1 by default)
-        this.nativeWidth = 320;
-        this.nativeHeight = 240;
-        this.scale = 2;
+        // Display mode
+        this.mode = mode; // 'norns', 'm8c', or 'auto'
+        
+        // Display dimensions based on mode
+        if (mode === 'norns') {
+            this.nativeWidth = 128;
+            this.nativeHeight = 64;
+            this.scale = 4;
+        } else {
+            // M8C MK1 by default
+            this.nativeWidth = 320;
+            this.nativeHeight = 240;
+            this.scale = 2;
+        }
         
         // Setup canvas
         this.updateCanvasSize();
@@ -176,7 +186,7 @@ class M8CRenderer {
     }
     
     processCommand(cmd) {
-        // Process display command from M8
+        // Process display command from M8 or Norns
         switch (cmd.type) {
             case 'rect':
                 this.drawRect(
@@ -204,8 +214,10 @@ class M8CRenderer {
                 
             case 'line':
                 this.drawLine(
-                    cmd.x1, cmd.y1,
-                    cmd.x2, cmd.y2,
+                    cmd.x1 || cmd.x, 
+                    cmd.y1 || cmd.y,
+                    cmd.x2 || cmd.x + (cmd.width || 0), 
+                    cmd.y2 || cmd.y + (cmd.height || 0),
                     cmd.color
                 );
                 break;
@@ -218,12 +230,27 @@ class M8CRenderer {
                 this.drawText(
                     cmd.text,
                     cmd.x, cmd.y,
-                    cmd.fg_color, cmd.bg_color
+                    cmd.fg_color || cmd.color,
+                    cmd.bg_color
                 );
                 break;
                 
+            case 'circle':
+                this.drawCircle(
+                    cmd.x, cmd.y,
+                    cmd.radius,
+                    cmd.color,
+                    cmd.filled
+                );
+                break;
+                
+            case 'update':
+                // Force render for double buffering
+                this.render();
+                break;
+                
             case 'system_info':
-                console.log('M8 System Info:', cmd);
+                console.log('System Info:', cmd);
                 // Update UI with system info if needed
                 if (cmd.hardware_model === 2) {
                     this.setModel('MK2');
@@ -235,8 +262,52 @@ class M8CRenderer {
         }
         
         // Render to main canvas after each command
-        // In production, might want to batch these
-        this.render();
+        // For Norns, we might want to wait for 'update' command
+        if (cmd.type !== 'update' || this.mode !== 'norns') {
+            this.render();
+        }
+    }
+    
+    drawCircle(x, y, radius, color, filled = true) {
+        const colorStr = this.colorToString(color);
+        
+        this.offscreenCtx.beginPath();
+        this.offscreenCtx.arc(x, y, radius, 0, 2 * Math.PI);
+        
+        if (filled) {
+            this.offscreenCtx.fillStyle = colorStr;
+            this.offscreenCtx.fill();
+        } else {
+            this.offscreenCtx.strokeStyle = colorStr;
+            this.offscreenCtx.lineWidth = 1;
+            this.offscreenCtx.stroke();
+        }
+    }
+    
+    setMode(mode) {
+        this.mode = mode;
+        
+        if (mode === 'norns') {
+            this.nativeWidth = 128;
+            this.nativeHeight = 64;
+            this.scale = 4;
+        } else if (mode === 'm8c' || mode === 'MK1') {
+            this.nativeWidth = 320;
+            this.nativeHeight = 240;
+            this.scale = 2;
+        } else if (mode === 'MK2') {
+            this.nativeWidth = 480;
+            this.nativeHeight = 320;
+            this.scale = 2;
+        }
+        
+        // Update offscreen canvas
+        this.offscreenCanvas.width = this.nativeWidth;
+        this.offscreenCanvas.height = this.nativeHeight;
+        
+        // Update main canvas
+        this.updateCanvasSize();
+        this.clear();
     }
     
     render() {
